@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel  # Import Pydantic's BaseModel
+from imblearn.combine import SMOTEENN  # Import SMOTENN
+from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import confusion_matrix, classification_report
@@ -16,11 +18,11 @@ model = MultinomialNB()
 vectorizer = TfidfVectorizer()
 
 # Load the dataset
-data = pd.read_csv('dataset copy.csv')  # Replace with your dataset file path
+data = pd.read_csv('SMSDataset.csv', encoding='macroman')  # Replace with your dataset file path
 
 # Preprocess and vectorize the data
-nltk.download('stopwords')
-stop_words = set(stopwords.words('english'))
+# nltk.download('stopwords')
+# stop_words = set(stopwords.words('english'))
 
 def preprocess_text(text):
     # Convert text to lowercase
@@ -30,20 +32,29 @@ def preprocess_text(text):
     text = ''.join([char for char in text if char not in string.punctuation and not char.isdigit()])
     
     # Tokenize the text and remove stopwords
-    tokens = nltk.word_tokenize(text)
-    tokens = [word for word in tokens if word not in stop_words]
+    # tokens = nltk.word_tokenize(text)
+    # tokens = [word for word in tokens if word not in stop_words]
     
     # Rejoin tokens into a single string
-    text = ' '.join(tokens)
+    # text = ' '.join(tokens)
     
     return text
 
 data['TEXT'] = data['TEXT'].apply(preprocess_text)
 
-# Train the initial model
+# Train-Test Split
 X = vectorizer.fit_transform(data['TEXT'])
 y = data['LABEL']
-model.fit(X, y)
+
+# Use train-test split to separate data for training and testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Apply SMOTENN to balance the training data
+#smotenn = SMOTEENN(sampling_strategy='auto', random_state=42)
+#X_train_resampled, y_train_resampled = smotenn.fit_resample(X_train, y_train)
+
+# Train the initial model on the resampled data
+model.fit(X_train, y_train)
 
 # Define a Pydantic model for the request payload
 class TextPayload(BaseModel):

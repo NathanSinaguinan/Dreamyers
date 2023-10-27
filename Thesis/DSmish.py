@@ -1,14 +1,10 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel  # Import Pydantic's BaseModel
-from imblearn.combine import SMOTEENN  # Import SMOTENN
+from pydantic import BaseModel  
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import confusion_matrix, classification_report
 import pandas as pd
-import joblib
-import nltk
-from nltk.corpus import stopwords
 import string
 
 app = FastAPI()
@@ -18,11 +14,7 @@ model = MultinomialNB()
 vectorizer = TfidfVectorizer()
 
 # Load the dataset
-data = pd.read_csv('SMSDataset.csv', encoding='macroman')  # Replace with your dataset file path
-
-# Preprocess and vectorize the data
-# nltk.download('stopwords')
-# stop_words = set(stopwords.words('english'))
+data = pd.read_csv('SMSDataset.csv', encoding='macroman')
 
 def preprocess_text(text):
     # Convert text to lowercase
@@ -30,13 +22,6 @@ def preprocess_text(text):
     
     # Remove punctuation and numbers
     text = ''.join([char for char in text if char not in string.punctuation and not char.isdigit()])
-    
-    # Tokenize the text and remove stopwords
-    # tokens = nltk.word_tokenize(text)
-    # tokens = [word for word in tokens if word not in stop_words]
-    
-    # Rejoin tokens into a single string
-    # text = ' '.join(tokens)
     
     return text
 
@@ -49,10 +34,6 @@ y = data['LABEL']
 # Use train-test split to separate data for training and testing
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Apply SMOTENN to balance the training data
-#smotenn = SMOTEENN(sampling_strategy='auto', random_state=42)
-#X_train_resampled, y_train_resampled = smotenn.fit_resample(X_train, y_train)
-
 # Train the initial model on the resampled data
 model.fit(X_train, y_train)
 
@@ -63,17 +44,17 @@ class TextPayload(BaseModel):
 
 @app.post("/update_model")
 async def update_model(new_data: TextPayload):
-    """
-    Update the model with new data.
-    """
     try:
+        global data  # Declare 'data' as a global variable
         # Extract and preprocess the new data
         new_text = preprocess_text(new_data.text)
         new_label = new_data.label
-        
-        # Add the new data to your dataset (data and labels)
-        data['TEXT'] = data['TEXT'].append(pd.Series([new_text]), ignore_index=True)
-        data['LABEL'] = data['LABEL'].append(pd.Series([new_label]), ignore_index=True)
+
+        # Create a new DataFrame for the new data
+        new_row = pd.DataFrame({"TEXT": [new_text], "LABEL": [new_label]})
+
+        # Concatenate the new data to the existing data
+        data = pd.concat([data, new_row], ignore_index=True)
         
         # Re-vectorize the entire dataset
         X = vectorizer.fit_transform(data['TEXT'])
@@ -110,8 +91,12 @@ async def evaluate_model():
     Evaluate the model using a confusion matrix and classification report.
     """
     try:
+        # Create a new vectorizer for evaluation and fit it to the evaluation data
+        evaluation_vectorizer = TfidfVectorizer()
+        X_test_vectorized = evaluation_vectorizer.fit_transform(data['TEXT'])  # Vectorize the evaluation data
+
         y_true = data['LABEL']
-        y_pred = model.predict(X)
+        y_pred = model.predict(X_test_vectorized)
 
         # Calculate confusion matrix and classification report
         cm = confusion_matrix(y_true, y_pred)

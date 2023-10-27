@@ -4,7 +4,7 @@ import requests
 server_url = "http://localhost:8000"  # Replace with your server's URL
 
 # Text sample you want to classify
-text_to_classify = "Good Morning Sir, inform ko lng po kayo na forfeited na po yung unit nyo since wla po kayo paramamdam upupurged na po nmiin today yung unit since angtagal na po ksi sain nito wla po kakyong prmdam thank you If willing pa po kyo kunin yung pwde n,n po kaso need nyo magbyad ng storage fee 50 per day. From 1 month up to now. Thank you"
+text_to_classify = "Hello, kamusta ka? sana okay ka lang dyan sainyo"
 
 # Define the request payload with both "text" and "label" fields
 payload = {"text": text_to_classify, "label": ""}  # Set the label as needed
